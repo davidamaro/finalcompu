@@ -1,0 +1,101 @@
+*Preliminares*
+
+La ecuación de Schrödinger en el espacio de configuración es, probablemente, una de las ecuaciones que más información nos pueden dar sobre el mundo microscópico. Como toda ecuación diferencial, sólo se conocen soluciones exactas para los potenciales más sencillos. Cuando queremos considerar sistemas más elaborados hay dos sopas: usar métodos perturbativos y aproximaciones por series de potencias, o usar métodos numéricos. 
+
+Este problema consiste en resolver la ecuación diferencial de segundo orden
+$$
+\left(-\frac{\hbar^2}{2m} \frac{d^2}{dx^2} + V(x) \right)\psi(x) = E \psi(x)
+$$
+
+donde $V(x)$ es el potencial al que está sometida la partícula y $|\psi(x)|^2$ la probabilidad de encontrarla en la posición $x$.
+
+*Método de numerov*
+
+El método de Numerov es un método *marchante* que, a pesar de ser relativamente fácil de implementar, puede arrojar resultados muy cercanos a la realidad.
+
+Para derivarlo, expandimos en serie de Taylor la versión discretizada de $\psi$:
+$$\psi(x_{\pm 1})=\psi(x_0) \pm \psi'(x_0) \Delta + \frac{1}{2!}\psi''(x_0)
+\Delta^2 \pm \frac{1}{3!}\psi^{(3)}(x_0) \Delta^3 + \frac{1}{4!}\psi^{(4)}(x_0)
+\Delta^4 \pm \frac{1}{5!}\psi^{(5)}(x_0) \Delta^5 + \mathcal{O}(\Delta^6)$$
+
+Si sumamos estos compas, tenemos que las potencias impares se nos van:
+$$\psi(x_{+ 1})+\psi(x_{- 1}) =2\psi(x_0)  + \psi''(x_0)
+\Delta^2 + \frac{1}{12}\psi^{(4)}(x_0)
+\Delta^4 + \mathcal{O}(\Delta^6)$$
+
+Si definimos $\delta(g(x))=g(x+\Delta/2) - g(x-\Delta/2)$, tenemos que
+
+$$\delta^2 = \delta(\delta(g))= g(x+\Delta)-g(x) - (g(x) - g(x-\Delta)) $$
+
+Si le aplicamos esta chulada a $\psi$, tenemos que:
+
+$$\delta^2(\psi_n) = \psi_{n+1}  + \psi_{n-1} - 2\psi_n  = \psi''(x_n)
+\Delta^2 + \frac{1}{12}\psi^{(4)}(x_n)
+\Delta^4 + \mathcal{O}(\Delta^6)$$
+
+Ahora vemos cómo se vería la cuarta derivada como función de la segunda
+derivada:
+
+$$\delta^2(\psi''_n) = \psi''_{n+1} + \psi''_{n-1} - 2\psi''_n  = \psi^{(4)}(x_0)
+\Delta^2 + \mathcal{O}(\Delta^4)$$ y lo enchufamos en la expresión anterior:
+
+$$\delta^2(\psi_n) = \psi_{n+1} + \psi_{n-1} - 2\psi_n  = \psi''(x_n)
+\Delta^2 + \frac{1}{12}\delta^2(\psi''(x_n))
+\Delta^2 + \mathcal{O}(\Delta^6)$$
+
+De la ec. de Schrödinger tenemos que $\psi''(x)=f(x)\psi(x)$, con $f(x) = V(x)-E$, que
+en lenguaje discreto se ve como $\psi''_n=f_n\psi_n$. Podemos usar esto en la
+ecuación anterior para cambiar poner a todas las segundas derivadas en función
+de $\psi$:
+$$ \psi_{n+1}+\psi_{n-1} - 2\psi_n  = f_{n}\psi_{n}
+\Delta^2 + \frac{1}{12}(f_{n+1}\psi_{n+1} + f_{n-1}\psi_{n-1} - 2f_{n}\psi_{n})
+\Delta^2 + \mathcal{O}(\Delta^6)$$
+
+Ahora bien, si pasamos los $f_i\psi_i$, del lado izquierdo, se tiene que
+
+$$ \psi_{n+1}\left(1 - \frac{\Delta^2 f_{n+1}}{12}\right) + \psi_{n-1}\left(1 - \frac{\Delta^2 f_{n-1}}{12}\right) - 2\psi_n\left(1 - \frac{\Delta^2 f_{n} }{12}\right)  = f_{n}\psi_{n}
+\Delta^2 + \mathcal{O}(\Delta^6)$$ que haciendo $\phi_n = \psi_n(1-\Delta ^2 f_n/12)$ toma la forma
+
+$$ \phi_{n+1} + \phi_{n-1}- 2\phi_n  = f_{n}\psi_{n}
+\Delta^2 $$ 
+
+O bien,
+$$ \phi_{n+1} =  2\phi_n - \phi_{n-1}  + f_{n}\psi_{n}
+\Delta^2 $$ 
+
+De esta fórmula vemos que el método de numerov (como todos los métodos numéricos para segundas derivadas) necesita dos puntos iniciales para empezar a trabajar.
+
+---
+
+Consideremos la ecuación de Ezkrotinger con un potencial de la forma 
+$$
+V(x)
+\cases{
+0, x \in [0,L]\\
+\infty, x \notin [0,L]
+}
+$$
+
+Aunque computacionalmente no es posible usar valores no acotados, el significado físico del potencial infinito es que ahí la función de onda vale 0, lo cual nos da condiciones de frontera en $x=0$ y $x=L$. De ahora en adelante tomaremos $\hbar = L=1$ y $m=1/2$ para simplificar las ecuaciones. En ese caso, sabemos que nuestras soluciones son de la forma 
+$$
+\psi_n = \sin(k_n x); \quad k = n\pi \Rightarrow E=n^2\pi^2
+$$
+
+---
+
+#Definimos la función que integra con el método de numerov
+function numerov (N, E, f)
+    g(x) = (f(x) - E)
+    Delta = 1/N
+    phi = zeros(N)
+    #definimos los primeros dos elementos de manera arb
+    phi[1] = 0
+    phi[2] = 0.001(1 - Delta^2 * g(0)/12)
+    #hacemos el paso iterativo
+    for i in 3:N
+        phi[i] = 2*phi[i - 1] - phi[i - 2] + Delta^2 * g((i - 1) * Delta) * phi[i - 1] / (1 - Delta^2 * g((i - 1) * Delta)/12)
+    end
+    #regresamos el valor de cada ψ_n  en un arreglo
+    return [phi[i]/((1 - Delta^2 * g((i - 1) * Delta)/12)) for i in 1:N]
+end
+numerov(1000, 5, f)
